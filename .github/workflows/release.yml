@@ -1,10 +1,16 @@
 name: Release
 
 # Pushing a tag like v1.0.0 builds a notarized DMG and publishes a GitHub release.
+# Running it manually is a dry run: the notarized DMG is uploaded as a workflow artifact instead.
 # Required repository secrets are listed in docs/RELEASING.md.
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to build, e.g. 1.0.0
+        required: true
 
 permissions:
   contents: write
@@ -12,6 +18,8 @@ permissions:
 jobs:
   release:
     runs-on: macos-15
+    env:
+      VERSION: ${{ inputs.version || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -44,13 +52,21 @@ jobs:
         run: |
           export NOTARY_KEY_PATH="$RUNNER_TEMP/notary.p8"
           echo "$NOTARY_KEY_BASE64" | base64 --decode > "$NOTARY_KEY_PATH"
-          scripts/make-dmg.sh "${GITHUB_REF_NAME#v}"
+          scripts/make-dmg.sh "${VERSION#v}"
+
+      - name: Upload DMG (dry run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: StayAwake-dmg
+          path: build/StayAwake-*.dmg
 
       - name: Publish release
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${VERSION#v}"
           # Release notes: this version's section of CHANGELOG.md.
           awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
           gh release create "$GITHUB_REF_NAME" "build/StayAwake-$VERSION.dmg" \

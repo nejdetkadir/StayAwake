@@ -43,6 +43,10 @@ secrets under the repository's Settings → Secrets and variables → Actions:
 
 ## Making a release
 
+To check signing and notarization without publishing anything, run the **Release** workflow manually
+(Actions → Release → Run workflow, or `gh workflow run release.yml -f version=1.0.0`).
+The notarized DMG is attached to the run as an artifact.
+
 1. Move the changes in `CHANGELOG.md` under a new version heading, e.g. `## [1.1.0] - 2026-11-01`.
 2. Commit, then tag and push:
 
