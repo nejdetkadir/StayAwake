@@ -37,7 +37,13 @@ codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
 
 echo "▸ Notarizing (this usually takes a few minutes)..."
 xcrun notarytool submit "$DMG" "${NOTARY_ARGS[@]}" --wait
-xcrun stapler staple "$DMG"
+# The ticket can take a moment to propagate and the CloudKit lookup is flaky, so retry stapling.
+for attempt in 1 2 3 4 5; do
+  xcrun stapler staple "$DMG" && break
+  [ "$attempt" = 5 ] && exit 1
+  echo "Stapling failed, retrying in $((attempt * 15))s..."
+  sleep $((attempt * 15))
+done
 
 echo "▸ Verifying..."
 xcrun stapler validate "$DMG"
